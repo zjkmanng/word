@@ -1,0 +1,40 @@
+{
+  "name": "word",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "core-js": "^2.6.5",
+    "docxtemplater": "^3.17.6",
+    "egg-cors": "^2.2.3",
+    "file-saver": "^2.0.2",
+    "jszip": "^2.6.1",
+    "jszip-utils": "^0.1.0",
+    "open-docxtemplater-image-module": "^1.0.3",
+    "pizzip": "^3.0.6",
+    "vue": "^2.6.10",
+    "vue-router": "^3.0.3"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "^3.9.0",
+    "@vue/cli-service": "^3.9.0",
+    "node-sass": "^4.9.0",
+    "sass-loader": "^7.1.0",
+    "vue-template-compiler": "^2.6.10"
+  },
+  "postcss": {
+    "plugins": {
+      "autoprefixer": {}
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions"
+  ]
+}
