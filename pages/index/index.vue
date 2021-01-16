@@ -162,6 +162,7 @@
 			</view>
 		</view>
 
+
 		<template v-for="(item, index) in form.saveQuestionList">
 			<view class="item">
 				<view class="title">
@@ -232,7 +233,12 @@
 
 		<!-- 底部按钮容器 -->
 		<div class="botmBtnContainer">
-			<button @click="exportWord" size="small" type="primary">导出word</button>
+			<div class="btn">
+				<button @click="exportWord" size="small" type="primary">导出word</button>
+			</div>
+			<div class="btn">
+				<button @click="savefile" size="small" type="primary">下载word中图片</button>
+			</div>
 		</div>
 	</div>
 </template>
@@ -240,6 +246,9 @@
 	import docxtemplater from 'docxtemplater'
 	import PizZip from 'pizzip'
 	import JSZipUtils from 'jszip-utils'
+	import ImageModule from "docxtemplater-image-module-free"
+	import expressions from 'angular-expressions'
+	import merge from 'lodash/merge'
 	import {
 		saveAs
 	} from 'file-saver'
@@ -295,11 +304,33 @@
 				}
 				return theRequest;
 			},
+			base64DataURLToArrayBuffer(dataURL) {
+				const base64Regex = /^data:image\/(png|jpg|svg|svg\+xml);base64,/;
+				if (!base64Regex.test(dataURL)) {
+					return false;
+				}
+				const stringBase64 = dataURL.replace(base64Regex, "");
+				let binaryString;
+				if (typeof window !== "undefined") {
+					binaryString = window.atob(stringBase64);
+				} else {
+					binaryString = new Buffer(stringBase64, "base64").toString("binary");
+				}
+				const len = binaryString.length;
+				const bytes = new Uint8Array(len);
+				for (let i = 0; i < len; i++) {
+					const ascii = binaryString.charCodeAt(i);
+					bytes[i] = ascii;
+				}
+				return bytes.buffer;
+			},
 			// 点击导出word
 			exportWord() {
-				var ImageModule = require('open-docxtemplater-image-module');
+				var ImageModule = require('docxtemplater-image-module-free');
+				var docxtemplater = require('docxtemplater');
 				// 点击导出word
 				let _this = this;
+
 				// 读取并获得模板文件的二进制内容
 				JSZipUtils.getBinaryContent("/static/input.docx", function(error, content) {
 					// exportTemplate.docx是模板。我们在导出的时候，会根据此模板来导出对应的数据
@@ -312,36 +343,13 @@
 					let opts = {}
 					opts.centered = true; // 图片居中，在word模板中定义方式为{%%image}
 					opts.fileType = "docx";
-					opts.getImage = function(tagValue, tagName) {
-						return new Promise(function(resolve, reject) {
-							JSZipUtils.getBinaryContent(tagValue, function(error, content) {
-								if (error) {
-									return reject(error);
-								}
-								return resolve(content);
-							});
-						});
-					};
-					opts.getSize = function(img, tagValue, tagName) {
-						// FOR FIXED SIZE IMAGE :
-						return [150, 150];
+					opts.getImage = function(chartId) {
+						return _this.base64DataURLToArrayBuffer(chartId);
+					}
 
-						// FOR IMAGE COMING FROM A URL (IF TAGVALUE IS AN ADDRESS) :
-						// To use this feature, you have to be using docxtemplater async
-						// (if you are calling setData(), you are not using async).
-						return new Promise(function(resolve, reject) {
-							var image = new Image();
-							image.src = url;
-							image.onload = function() {
-								resolve([image.width, image.height]);
-							};
-							image.onerror = function(e) {
-								console.log("img, tagValue, tagName : ", img, tagValue, tagName);
-								alert("An error occured while loading " + tagValue);
-								reject(e);
-							};
-						});
-					};
+					opts.getSize = function() {
+						return [600, 300]
+					}
 
 					let imageModule = new ImageModule(opts);
 					// 创建一个PizZip实例，内容为模板的内容
@@ -354,6 +362,8 @@
 					// 设置模板变量的值
 					doc.setData({
 						clients: _this.form,
+						image: _this.image,
+						beforePic: _this.beforePic
 					});
 
 					try {
@@ -375,8 +385,51 @@
 						mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 					});
 					// 将目标文件对象保存为目标类型的文件，并命名
-					saveAs(out, "word文档名称.docx");
+					saveAs(out, "询问笔录?random=" + Math.random() + ".docx");
 				});
+			},
+			// 下载图片
+			savefile() {
+				for (var i = 0; i < this.form.saveQuestionList.length; i++) {
+					const that = this;
+					// #ifdef H5
+					// var $code_img = document.getElementById('code_img' + i);
+					// console.log($code_img.src)
+					// #endif
+					uni.downloadFile({
+						url: this.form.saveQuestionList[i].beforePic,
+						success: (res) => {
+							if (res.statusCode === 200) {
+								console.log(res.tempFilePath);
+								that.saveImg(res.tempFilePath)
+							}
+						}
+					});
+					
+					uni.downloadFile({
+						url: this.form.saveQuestionList[i].afterPic,
+						success: (res) => {
+							if (res.statusCode === 200) {
+								console.log(res.tempFilePath);
+								that.saveImg(res.tempFilePath)
+							}
+						}
+					});
+					
+				}
+			},
+			saveImg(url) {
+				var oA = document.createElement("a");
+					oA.download = '';// 设置下载的文件名，默认是'下载'
+					oA.href = url;
+					document.body.appendChild(oA);
+					oA.click();
+					oA.remove(); // 下载之后把创建的元素删除
+				
+				uni.showToast({
+					title: '图片保存成功',
+					icon: 'none'
+				})
 			}
 		}
 	};
@@ -398,7 +451,16 @@
 
 	// 底部按钮
 	.botmBtnContainer {
-		text-align: center;
-		padding: 20px;
+		padding: 20rpx;
+		display: flex;
+		justify-content: space-between;
+
+		.btn {
+			width: 45%;
+
+			button {
+				font-size: 20rpx;
+			}
+		}
 	}
 </style>
